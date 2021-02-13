@@ -1,0 +1,272 @@
+options {
+	JAVA_UNICODE_ESCAPE=true;
+	STATIC=false;					// 1 seul parseur actif a la fois (+ rapide)
+	MULTI=true;						// type noeud = f(nom noeud)
+	VISITOR=true;					// Cree une methode accept(visiteur)
+}
+
+//
+// PARSER DEFINITION
+//
+
+PARSER_BEGIN(Parser)
+
+package analyzer.ast;
+
+public class Parser
+{
+	public static ASTProgram ParseTree(java.io.InputStream input) throws ParseException
+	{
+		Parser c = new Parser(input);
+		return c.Program();
+	}
+}
+
+PARSER_END(Parser)
+
+//
+// LEXICAL ANALYSIS
+//
+
+// White space
+
+SKIP :
+{
+	< ( " " | "\t" | "\n" | "\r" )+	>
+}
+
+// Comments
+
+MORE :
+{
+  "//" : IN_SINGLE_LINE_COMMENT
+|
+  <"/**" ~["/"]> { input_stream.backup(1); } : IN_FORMAL_COMMENT
+|
+  "/*" : IN_MULTI_LINE_COMMENT
+}
+
+<IN_SINGLE_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "\n" | "\r" | "\r\n" > : DEFAULT
+}
+
+<IN_FORMAL_COMMENT>
+SPECIAL_TOKEN :
+{
+  <FORMAL_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_MULTI_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <MULTI_LINE_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_SINGLE_LINE_COMMENT,IN_FORMAL_COMMENT,IN_MULTI_LINE_COMMENT>
+MORE :
+{
+  < ~[] >
+}
+
+
+
+
+// Keywords
+TOKEN :
+{
+	< IF: "if"	> |
+	< ELSE: "else" > |
+	< ELSEIF: "else if">|
+	< STRING: "string"> |
+	< INT: "int"> |
+	< FLOAT: "float" > |
+	< BOOL: "boolean"> |
+	< CHAR: "char"> |
+	< CLASS: "class"> |
+	< PRINT: "print" > |
+	< INPUT: "input" > |
+	< IN: "in" >
+	// À compléter au besoin
+}
+
+// Operators
+TOKEN :
+{
+	< ASSIGN: < EQUAL >  > |
+	< COMPARE: < LESS > | < LESSEQUAL > | < GREAT > | <GREATEQUAL > | < DIFF > | < EQUALEQUAL > > |
+    < LOGIC: < AND > | < OR > > |
+	< #LESS: "<" > |
+	< #LESSEQUAL: "<=" > |
+	< #GREAT: ">" > |
+	< #GREATEQUAL: ">=" > |
+	< #DIFF: "!=" > |
+	< #EQUALEQUAL: "==" > |
+
+	< PLUS: "+" > |
+	< MINUS: "-" > |
+	< FOIS: "*" > |
+	< DIV: "/" > |
+    < NOT: "!" > |
+    < APOSTROPHE: "'">|
+
+	< #EQUAL: "=" > |
+	< LACC: "{" > |
+	< RACC: "}" > |
+	<LPAREN:"(">|
+	<RPAREN:")">|
+	< COLON: ":" > |
+	< SEMICOLON: ";" > |
+	< COMMA: "," > |
+	< #AND: "&&" > |
+	< #OR: "||" >
+	// À compléter au besoin
+}
+
+
+// Identifiers and numbers
+TOKEN :
+{
+	< IDENTIFIER: <LETTER> ( <LETTER> | <DIGIT> )* > |
+	< #LETTER: ["a"-"z","A"-"Z","_"] > |
+	< #DIGIT: ["0"-"9"] > |
+	< INTEGER: ["1"-"9"] (["0"-"9"])* | "0" > |
+	// // Caution! Allows numbers such as "0000.23"
+	< REAL: (<INTEGER>)* "." (<INTEGER>)* ((<LETTER>) "+"(<INTEGER>))*>
+
+}
+
+
+
+
+
+
+
+//
+// SYNTAX ANALYSIS
+//
+
+ASTProgram Program() : { }
+{
+	Block() <EOF> { return jjtThis;  }
+}
+
+void Block() #void: { }
+{
+	 (Stmt())*
+}
+
+void Stmt() #void: { }
+{
+	AssignStmt() <SEMICOLON> |
+	IfStmt()|
+	ClassDeclaration()
+}
+
+void AssignStmt(): { Token t;}
+{
+	Identifier() <ASSIGN> Expr()
+}
+
+void IfStmt():{}
+{
+    (<IF> <LPAREN> Expr() <RPAREN> Stmt()|
+     <LACC> Block() <RACC>)(LOOKAHEAD(2)
+     <ELSEIF> <LPAREN> Expr() <RPAREN> <LACC> Block()<RACC>)*
+     [LOOKAHEAD(2) <ELSE> <LACC>Block()<RACC>]
+}
+
+void Expr() #void: {}
+{
+    LogicExpr()
+}
+
+void LogicExpr() #void:{}
+{
+    ComparisonExpr() ((<LOGIC>) ComparisonExpr())* #Logic(>0)
+}
+
+void ComparisonExpr() #void :{}
+{
+    AddExpr() ((<COMPARE>) AddExpr())* #Comparison(>0)
+}
+
+void AddExpr() #void :{}
+{
+    MultExpr() ((<PLUS>|<MINUS>) MultExpr())* #Addition(>0)
+}
+
+void MultExpr() #void :{}
+{
+    NegExpr() ((<FOIS>|<DIV>) NegExpr())* #Multiplication(>0)
+}
+
+void NegExpr() #void:{}
+{
+    (<MINUS>)* NoExpr()
+}
+
+void NoExpr() #void:{}
+{
+    (<NOT>)* ParentExpr()
+}
+
+void ParentExpr() #void:{}
+{
+    (<LPAREN> Expr() <RPAREN>)|
+    BasicExpr()
+}
+
+void BasicExpr() #void : {}
+{
+	LOOKAHEAD(2) Identifier() |
+	IntValue() |
+    StringValue() |
+    RealValue()
+}
+
+void ClassDeclaration() #void :{}
+{
+    <CLASS> Identifier() <LACC> ClassBody() <RACC> #Class
+}
+
+void ClassBody() #void:{}
+{
+    (LOOKAHEAD(3) ClassDeclaration() | LOOKAHEAD(3) AttributeDeclaration() | MethodDeclaration())*
+}
+
+void AttributeDeclaration() #void:{}
+{
+    (<INT> | <CHAR> | <BOOL>)(Identifier() [<ASSIGN> Expr()] [<COMMA>])* <SEMICOLON> #Attribute(>0)
+}
+
+void Parameters() #void:{}
+{
+    ((<INT> | <CHAR> | <BOOL>) Identifier() [<COMMA>])*
+}
+
+void MethodDeclaration() #void :{}
+{
+    (<INT> | <CHAR> | <BOOL>) Identifier() <LPAREN> Parameters() <RPAREN> <LACC> Block() <RACC> #Method
+}
+
+void StringValue():{}
+{
+    <APOSTROPHE> Identifier() <APOSTROPHE>
+}
+
+void Identifier() : { Token t;}
+{
+	t = <IDENTIFIER> {jjtThis.setValue(t.image);}
+}
+
+void IntValue() : { Token t;}
+{
+	t = <INTEGER> {jjtThis.setValue(Integer.parseInt(t.image));}
+}
+
+void RealValue() : { Token t;}
+{
+	t = <REAL> {jjtThis.setValue(Double.parseDouble(t.image));}
+}
