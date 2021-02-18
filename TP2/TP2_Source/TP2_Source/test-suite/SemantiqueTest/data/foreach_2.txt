@@ -1,8 +1,0 @@
-Declaration
-num a;
-listnum [] e;
-EndDeclaration
-
-foreach(bool d: e) {
-    a = 1 + 1 / 3;
-}

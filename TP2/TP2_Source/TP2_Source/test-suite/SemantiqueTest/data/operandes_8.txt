@@ -1,8 +1,0 @@
-Declaration
-bool a;
-num b;
-EndDeclaration
-
-a = true;
-b = (1 / 2) + true * 6;
-a = false;

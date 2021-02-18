@@ -1,1 +1,0 @@
-{VAR:2, WHILE:0, IF:1, FOR:0, OP:1}

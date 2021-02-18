@@ -1,4 +1,0 @@
-Declaration
-num a;
-listnum [] a;
-EndDeclaration

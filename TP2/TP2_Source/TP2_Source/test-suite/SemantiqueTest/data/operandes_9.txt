@@ -1,5 +1,0 @@
-Declaration
-bool a;
-EndDeclaration
-
-a = - true;
